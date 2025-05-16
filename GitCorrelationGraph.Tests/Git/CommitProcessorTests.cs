@@ -134,6 +134,44 @@ namespace GitCorrelationGraph.Tests.Git
             graph.ProcessingState.TotalCommitsProcessed.ShouldBe(3); // 1 + 2 = 3
         }
 
+        [Fact]
+        public void ProcessCommit_ShouldRemoveDeletedFiles_FromGraph()
+        {
+            // Arrange
+            using var reader = new GitRepositoryReader(_tempRepoPath, FileFilter.CreateTestFilter());
+            var processor = new CommitProcessor(reader);
+            var graph = new CorrelationGraph();
+
+            // Process the first three commits to build the graph
+            var commits = reader.GetCommitBatch(string.Empty, 3).ToList();
+            foreach (var commit in commits)
+            {
+                processor.ProcessCommit(commit, graph);
+            }
+
+            // Verify file2.txt is in the graph
+            graph.Nodes.ContainsKey("file2.txt").ShouldBeTrue();
+
+            // Create a fourth commit that deletes file2.txt
+            File.Delete(Path.Combine(_tempRepoPath, "file2.txt"));
+            Commands.Stage(_repository, "file2.txt");
+
+            var author = new Signature("Test User", "test@example.com", DateTimeOffset.Now);
+            var deleteCommit = _repository.Commit("Delete file2.txt", author, author);
+
+            // Act
+            processor.ProcessCommit(deleteCommit, graph);
+
+            // Assert
+            graph.Nodes.ContainsKey("file2.txt").ShouldBeFalse();
+
+            // Check that edges to file2.txt were removed
+            foreach (var node in graph.Nodes.Values)
+            {
+                node.Edges.ContainsKey("file2.txt").ShouldBeFalse();
+            }
+        }
+
         private void CreateTestCommits()
         {
             // Create first commit with file1.txt

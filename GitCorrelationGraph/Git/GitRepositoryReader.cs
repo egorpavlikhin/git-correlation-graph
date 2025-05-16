@@ -12,6 +12,11 @@ namespace GitCorrelationGraph.Git
         private readonly FileFilter _fileFilter;
 
         /// <summary>
+        /// Gets the underlying LibGit2Sharp repository
+        /// </summary>
+        public Repository Repository => _repository;
+
+        /// <summary>
         /// Creates a new GitRepositoryReader with the default file filter
         /// </summary>
         /// <param name="repositoryPath">Path to the git repository</param>
@@ -61,6 +66,16 @@ namespace GitCorrelationGraph.Git
         /// </summary>
         public IEnumerable<string> GetFilesInCommit(Commit commit)
         {
+            return GetFilesInCommit(commit, false);
+        }
+
+        /// <summary>
+        /// Get the files changed in a commit
+        /// </summary>
+        /// <param name="commit">The commit to get files from</param>
+        /// <param name="excludeDeletedFiles">Whether to exclude files that were deleted in this commit</param>
+        public IEnumerable<string> GetFilesInCommit(Commit commit, bool excludeDeletedFiles)
+        {
             IEnumerable<string> files;
 
             if (commit.Parents.Any())
@@ -68,9 +83,21 @@ namespace GitCorrelationGraph.Git
                 var parent = commit.Parents.First();
                 var changes = _repository.Diff.Compare<TreeChanges>(parent.Tree, commit.Tree);
 
-                files = changes
-                    .Select(change => change.Path)
-                    .ToList();
+                if (excludeDeletedFiles)
+                {
+                    // Exclude deleted files
+                    files = changes
+                        .Where(change => change.Status != ChangeKind.Deleted)
+                        .Select(change => change.Path)
+                        .ToList();
+                }
+                else
+                {
+                    // Include all files
+                    files = changes
+                        .Select(change => change.Path)
+                        .ToList();
+                }
             }
             else
             {
