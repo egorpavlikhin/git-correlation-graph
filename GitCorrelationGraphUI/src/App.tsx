@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import './App.css';
+import ClusterView from './components/ClusterView';
 import FileInput from './components/FileInput';
 import FilterControls from './components/FilterControls';
 import GraphVisualization from './components/GraphVisualization';
+import TabNavigation, { TabType } from './components/TabNavigation';
 import { CorrelationGraph, FilterSettings, GraphData } from './models/GraphTypes';
 import { GraphDataService } from './services/GraphDataService';
 
@@ -14,6 +16,7 @@ const App: React.FC = () => {
     maxConnections: 50,
     minCorrelation: 0.1 // 10% minimum correlation
   });
+  const [activeTab, setActiveTab] = useState<TabType>('graph');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +48,10 @@ const App: React.FC = () => {
     }
   };
 
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -73,6 +80,7 @@ const App: React.FC = () => {
                 <p>Connections: {graphData.links.length}</p>
                 <p>Commits Processed: {graph.ProcessingState.TotalCommitsProcessed}</p>
               </div>
+              <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
               <button
                 className="load-new-button"
                 onClick={() => setGraph(null)}
@@ -81,7 +89,11 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <GraphVisualization graphData={graphData} />
+            {activeTab === 'graph' ? (
+              <GraphVisualization graphData={graphData} />
+            ) : (
+              <ClusterView graph={graph} />
+            )}
           </div>
         )}
       </main>
